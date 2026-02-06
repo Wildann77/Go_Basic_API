@@ -9,6 +9,8 @@ import (
 	"goapi/internal/services"
 	"log"
 
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -62,6 +64,13 @@ func main() {
 			authorized.GET("/me", userHandler.GetCurrentUser)
 		}
 	}
+
+	fmt.Println(`
+ ______     ______        ______     ______   __    
+/\  ___\   /\  __ \      /\  __ \   /\  == \ /\ \   
+\ \ \__ \  \ \ \/\ \     \ \  __ \  \ \  _-/ \ \ \  
+ \ \_____\  \ \_____\     \ \_\ \_\  \ \_\    \ \_\ 
+  \/_____/   \/_____/      \/_/\/_/   \/_/     \/_/ `)
 
 	// Run server
 	log.Printf("Server starting on port %s", cfg.ServerPort)

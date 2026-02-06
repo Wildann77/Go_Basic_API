@@ -41,6 +41,7 @@ services-up:
 services-down:
 	@echo "🛑 Stopping services..."
 	@docker compose down
+	
 
 services-logs:
 	@docker compose logs -f

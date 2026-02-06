@@ -43,7 +43,7 @@ down:
 	@docker compose down
 
 
-services-logs:
+logs:
 	@docker compose logs -f
 
 # Check services health

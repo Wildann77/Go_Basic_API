@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: goapi_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: goapi
+    ports:
+      - "5433:5432"    # Map ke port 5433 di host biar gak bentrok
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: goapi_redis
+    ports:
+      - "6380:6379"    # Map ke port 6380 di host biar gak bentrok
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Optional: Adminer untuk manage PostgreSQL via browser
+  adminer:
+    image: adminer
+    container_name: goapi_adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  redis_data:

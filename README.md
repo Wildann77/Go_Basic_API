@@ -8,12 +8,13 @@ Project ini adalah REST API sederhana yang dibangun menggunakan **Go (Golang)**,
 - Database PostgreSQL
 - Caching/Session menggunakan Redis
 - Authentication (JWT)
-- Dockerize project
+- Dockerize project services
+- Hot reload development (Air)
 
 ## Prasyarat
 - [Go](https://golang.org/dl/) (versi 1.21 atau terbaru)
 - [Docker](https://www.docker.com/products/docker-desktop) & [Docker Compose](https://docs.docker.com/compose/install/)
-- [Make](https://www.gnu.org/software/make/) (opsional, untuk menjalankan perintah Makefile)
+- [Air](https://github.com/cosmtrek/air) (Optional, untuk hot reload)
 
 ## Cara Menjalankan
 
@@ -23,35 +24,36 @@ Copy file `.env.example` menjadi `.env` dan sesuaikan konfigurasinya:
 cp .env.example .env
 ```
 
-### 2. Menjalankan Infrastruktur (Database & Redis)
-Gunakan Docker Compose untuk menjalankan PostgreSQL dan Redis:
+### 2. Setup Awal & Jalankan Services
+Perintah ini akan mendownload dependencies dan menyalakan Docker services (DB & Redis):
 ```bash
-docker-compose up -d
+make setup
 ```
 
 ### 3. Menjalankan Aplikasi
-Anda bisa menjalankan aplikasi langsung menggunakan Go atau melalui Makefile.
-
-**Menggunakan Go:**
+Untuk development dengan hot reload:
 ```bash
-go run cmd/api/main.go
+make dev
 ```
-
-**Menggunakan Makefile:**
+Atau tanpa hot reload:
 ```bash
 make run
 ```
 
 ## Perintah Makefile yang Tersedia
-- `make build`: Membuat binary aplikasi.
-- `make run`: Menjalankan aplikasi.
-- `make test`: Menjalankan unit test.
-- `make docker-up`: Menjalankan container (db & redis).
-- `make docker-down`: Menghentikan container.
+- `make setup`: Setup awal (deps + services-up).
+- `make dev`: Menjalankan aplikasi dengan hot reload (Air).
+- `make services-up`: Menyalakan PostgreSQL, Redis, dan Adminer.
+- `make services-down`: Mematikan Docker containers.
+- `make services-logs`: Melihat log dari services.
+- `make build`: Membuat binary di folder `bin/`.
 - `make clean`: Menghapus file binary.
+- `make test`: Menjalankan unit test.
+- `make migrate-up`: Menjalankan migrasi database.
 
 ## Struktur Folder
 - `cmd/api/`: Entry point aplikasi (main.go).
-- `internal/`: Logika bisnis internal (models, repository, services, config).
+- `internal/`: Logika bisnis internal (models, repository, services, config, handlers).
 - `pkg/`: Library atau utility yang bisa digunakan kembali.
 - `docker-compose.yml`: Konfigurasi Docker untuk database dan redis.
+

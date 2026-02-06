@@ -14,7 +14,7 @@ Project ini adalah REST API sederhana yang dibangun menggunakan **Go (Golang)**,
 ## Prasyarat
 - [Go](https://golang.org/dl/) (versi 1.21 atau terbaru)
 - [Docker](https://www.docker.com/products/docker-desktop) & [Docker Compose](https://docs.docker.com/compose/install/)
-- [Air](https://github.com/cosmtrek/air) (Optional, untuk hot reload)
+- [Air](https://github.com/air-verse/air) (Optional, untuk hot reload)
 
 ## Cara Menjalankan
 

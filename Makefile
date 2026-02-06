@@ -13,8 +13,8 @@ run:
 
 # Development dengan hot reload
 dev:
-	@which air > /dev/null || (go install github.com/cosmtrek/air@latest)
-	@air
+	@which air > /dev/null || (echo "Installing air..." && go install github.com/air-verse/air@latest)
+	@$(shell go env GOPATH)/bin/air
 
 # Download dependencies
 deps:
@@ -32,7 +32,7 @@ clean:
 # Docker Services Only
 services-up:
 	@echo "🚀 Starting PostgreSQL and Redis..."
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "✅ Services running!"
 	@echo "   PostgreSQL: localhost:5433"
 	@echo "   Redis: localhost:6380"
@@ -40,14 +40,14 @@ services-up:
 
 services-down:
 	@echo "🛑 Stopping services..."
-	@docker-compose down
+	@docker compose down
 
 services-logs:
-	@docker-compose logs -f
+	@docker compose logs -f
 
 # Check services health
 services-status:
-	@docker-compose ps
+	@docker compose ps
 
 # Database commands
 migrate-up:

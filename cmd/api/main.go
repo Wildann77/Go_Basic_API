@@ -1,12 +1,13 @@
 package main
 
 import (
-	"log"
 	"goapi/internal/config"
 	"goapi/internal/handlers"
 	"goapi/internal/middleware"
+	"goapi/internal/models"
 	"goapi/internal/repository"
 	"goapi/internal/services"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,13 @@ func main() {
 	db, err := config.InitDB(cfg)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Auto-migrate models
+	log.Println("Run database migration...")
+	err = db.AutoMigrate(&models.User{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
 	}
 
 	// Initialize repository, service, handler

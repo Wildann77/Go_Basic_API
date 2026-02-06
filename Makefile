@@ -47,7 +47,7 @@ logs:
 	@docker compose logs -f
 
 # Check services health
-services-status:
+status:
 	@docker compose ps
 
 # Database commands

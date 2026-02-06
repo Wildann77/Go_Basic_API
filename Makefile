@@ -38,7 +38,7 @@ up:
 	@echo "   Redis: localhost:6380"
 	@echo "   Adminer: http://localhost:8081"
 
-services-down:
+down:
 	@echo "🛑 Stopping services..."
 	@docker compose down
 

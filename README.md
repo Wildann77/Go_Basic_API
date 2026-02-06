@@ -9,7 +9,7 @@ Project ini adalah REST API sederhana yang dibangun menggunakan **Go (Golang)**,
 - Caching/Session menggunakan Redis
 - Authentication (JWT)
 - Dockerize project services
-- Hot reload development (Air)
+- Hot reload development (Air)..
 
 ## Prasyarat
 - [Go](https://golang.org/dl/) (versi 1.21 atau terbaru)

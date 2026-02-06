@@ -30,7 +30,7 @@ clean:
 	@rm -rf bin/
 
 # Docker Services Only
-services-up:
+up:
 	@echo "🚀 Starting PostgreSQL and Redis..."
 	@docker compose up -d
 	@echo "✅ Services running!"
@@ -41,7 +41,7 @@ services-up:
 services-down:
 	@echo "🛑 Stopping services..."
 	@docker compose down
-	
+
 
 services-logs:
 	@docker compose logs -f

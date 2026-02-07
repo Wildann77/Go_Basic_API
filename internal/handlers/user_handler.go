@@ -101,16 +101,7 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Current user retrieved", user)
 }
 
-// UpdateUser godoc
-// @Summary Update user
-// @Tags users
-// @Security Bearer
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Param user body models.User true "User updates"
-// @Success 200 {object} utils.Response
-// @Router /api/v1/users/{id} [put]
+
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

@@ -1,4 +1,4 @@
-.PHONY: build run dev test clean deps services-up services-down services-logs migrate
+.PHONY: build run dev test clean deps up down logs status migrate-up migrate-down setup
 
 APP_NAME=goapi
 MAIN_FILE=cmd/api/main.go
@@ -59,7 +59,7 @@ migrate-down:
 	@migrate -path migrations -database "postgres://postgres:postgres@localhost:5433/goapi?sslmode=disable" down
 
 # Full setup untuk development baru
-setup: deps services-up
+setup: deps up
 	@echo "⏳ Waiting for PostgreSQL..."
 	@sleep 3
 	@echo "✅ Setup complete! Run 'make dev' to start development server"

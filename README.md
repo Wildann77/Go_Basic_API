@@ -54,7 +54,7 @@ cp .env.example .env
 
 ### 2. Jalankan Infrastruktur (DB & Redis)
 ```bash
-make services-up
+make up
 ```
 
 ### 3. Jalankan Aplikasi
@@ -72,11 +72,18 @@ make run
 ## 📜 Perintah Makefile
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `make setup` | Install dependencies dan jalankan Docker services. |
-| `make dev` | Jalankan server dengan hot reload (Air). |
-| `make build` | Compile aplikasi menjadi binary. |
-| `make test` | Jalankan unit testing. |
-| `make services-up` | Jalankan PostgreSQL & Redis di background. |
-| `make services-down` | Matikan semua services Docker. |
+| `make setup` | Setup awal (download dependencies & jalankan services). |
+| `make up` | Jalankan PostgreSQL & Redis menggunakan Docker. |
+| `make down` | Hentikan semua services Docker. |
+| `make status` | Cek status services Docker yang berjalan. |
+| `make logs` | Intip logs dari services Docker. |
+| `make dev` | Jalankan aplikasi dengan Hot Reload (Air). |
+| `make run` | Jalankan aplikasi secara langsung (Go run). |
+| `make build` | Compile aplikasi menjadi binary di folder `bin/`. |
+| `make test` | Jalankan semua unit tests. |
+| `make deps` | Download dan merapikan Go modules. |
+| `make migrate-up` | Jalankan database migrations. |
+| `make migrate-down` | Rollback database migrations. |
+| `make clean` | Hapus folder `bin/`. |
 
 ---

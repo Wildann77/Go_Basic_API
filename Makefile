@@ -13,7 +13,7 @@ run:
 
 # Development dengan hot reload
 dev:
-	@which air > /dev/null || (echo "Installing air..." && go install github.com/air-verse/air@latest)
+# 	@which air > /dev/null || (echo "Installing air..." && go install github.com/air-verse/air@latest)
 	@$(shell go env GOPATH)/bin/air
 
 # Download dependencies

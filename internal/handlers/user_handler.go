@@ -84,13 +84,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "User retrieved successfully", user)
 }
 
-// GetCurrentUser godoc
-// @Summary Get current logged in user
-// @Tags users
-// @Security Bearer
-// @Produce json
-// @Success 200 {object} utils.Response
-// @Router /api/v1/me [get]
+
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {

@@ -67,14 +67,7 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Users retrieved successfully", users)
 }
 
-// GetUserByID godoc
-// @Summary Get user by ID
-// @Tags users
-// @Security Bearer
-// @Produce json
-// @Param id path int true "User ID"
-// @Success 200 {object} utils.Response
-// @Router /api/v1/users/{id} [get]
+
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

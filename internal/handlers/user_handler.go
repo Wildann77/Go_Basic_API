@@ -56,13 +56,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Login successful", data)
 }
 
-// GetAllUsers godoc
-// @Summary Get all users
-// @Tags users
-// @Security Bearer
-// @Produce json
-// @Success 200 {object} utils.Response
-// @Router /api/v1/users [get]
+
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	users, err := h.service.GetAll()
 	if err != nil {

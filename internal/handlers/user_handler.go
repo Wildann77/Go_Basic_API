@@ -124,14 +124,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "User updated successfully", user)
 }
 
-// DeleteUser godoc
-// @Summary Delete user
-// @Tags users
-// @Security Bearer
-// @Produce json
-// @Param id path int true "User ID"
-// @Success 200 {object} utils.Response
-// @Router /api/v1/users/{id} [delete]
+
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

@@ -42,14 +42,6 @@ func (h *UserHandler) Register(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "User registered successfully", user)
 }
 
-// Login godoc
-// @Summary User login
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body models.LoginRequest true "Login credentials"
-// @Success 200 {object} utils.Response
-// @Router /api/v1/login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

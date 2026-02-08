@@ -43,26 +43,6 @@ Proyek ini mendukung **Database Transactions** penuh untuk menjaga integritas da
 - **Context-Based**: Transaksi diteruskan secara implisit melalui `context.Context`.
 - **Atomic Service**: Logika bisnis kompleks di Service Layer dapat dibungkus dalam satu transaksi.
 - **Repository Agnostic**: Repository secara otomatis mendeteksi apakah sedang berada dalam transaksi atau tidak.
-
-### Contoh Penggunaan (Service Layer):
-```go
-func (s *userService) RegisterWithProfile(ctx context.Context, req *Request) error {
-    // Mulai transaksi
-    return s.repo.WithTransaction(ctx, func(txCtx context.Context) error {
-        // Semua operasi di sini bersifat ATOMIC (All-or-Nothing)
-        if err := s.userRepo.Create(txCtx, user); err != nil {
-            return err // Otomatis Rollback
-        }
-
-        if err := s.profileRepo.Create(txCtx, profile); err != nil {
-            return err // Otomatis Rollback
-        }
-
-        return nil // Otomatis Commit
-    })
-}
-```
-
 ---
 
 ## 🛠️ Persyaratan Sistem

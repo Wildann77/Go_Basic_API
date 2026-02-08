@@ -18,7 +18,6 @@ func NewUserHandler(service services.UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
-
 func (h *UserHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -26,7 +25,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Register(&req)
+	user, err := h.service.Register(c.Request.Context(), &req)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Registration failed", err.Error())
 		return
@@ -42,7 +41,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.service.Login(&req)
+	token, user, err := h.service.Login(c.Request.Context(), &req)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Login failed", err.Error())
 		return
@@ -56,9 +55,8 @@ func (h *UserHandler) Login(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Login successful", data)
 }
 
-
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-	users, err := h.service.GetAll()
+	users, err := h.service.GetAll(c.Request.Context())
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get users", err.Error())
 		return
@@ -67,7 +65,6 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Users retrieved successfully", users)
 }
 
-
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -75,7 +72,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetByID(uint(id))
+	user, err := h.service.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "User not found", err.Error())
 		return
@@ -84,7 +81,6 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "User retrieved successfully", user)
 }
 
-
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -92,7 +88,7 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetByID(userID.(uint))
+	user, err := h.service.GetByID(c.Request.Context(), userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "User not found", err.Error())
 		return
@@ -100,7 +96,6 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Current user retrieved", user)
 }
-
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -115,7 +110,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Update(uint(id), &updates)
+	user, err := h.service.Update(c.Request.Context(), uint(id), &updates)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Update failed", err.Error())
 		return
@@ -124,7 +119,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "User updated successfully", user)
 }
 
-
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -132,7 +126,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(uint(id)); err != nil {
+	if err := h.service.Delete(c.Request.Context(), uint(id)); err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Delete failed", err.Error())
 		return
 	}

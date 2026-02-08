@@ -1,21 +1,22 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"goapi/internal/models"
 	"goapi/internal/repository"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"time"
 )
 
 type UserService interface {
-	Register(req *models.RegisterRequest) (*models.UserResponse, error)
-	Login(req *models.LoginRequest) (string, *models.UserResponse, error)
-	GetByID(id uint) (*models.UserResponse, error)
-	GetAll() ([]models.UserResponse, error)
-	Update(id uint, updates *models.User) (*models.UserResponse, error)
-	Delete(id uint) error
+	Register(ctx context.Context, req *models.RegisterRequest) (*models.UserResponse, error)
+	Login(ctx context.Context, req *models.LoginRequest) (string, *models.UserResponse, error)
+	GetByID(ctx context.Context, id uint) (*models.UserResponse, error)
+	GetAll(ctx context.Context) ([]models.UserResponse, error)
+	Update(ctx context.Context, id uint, updates *models.User) (*models.UserResponse, error)
+	Delete(ctx context.Context, id uint) error
 }
 
 type userService struct {
@@ -30,34 +31,44 @@ func NewUserService(repo repository.UserRepository) UserService {
 	}
 }
 
-func (s *userService) Register(req *models.RegisterRequest) (*models.UserResponse, error) {
-	// Check if email exists
-	if _, err := s.repo.GetByEmail(req.Email); err == nil {
-		return nil, errors.New("email already registered")
-	}
+func (s *userService) Register(ctx context.Context, req *models.RegisterRequest) (*models.UserResponse, error) {
+	var response models.UserResponse
 
-	user := &models.User{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: req.Password,
-		FullName: req.FullName,
-	}
+	err := s.repo.WithTransaction(ctx, func(txCtx context.Context) error {
+		// Check if email exists
+		if _, err := s.repo.GetByEmail(txCtx, req.Email); err == nil {
+			return errors.New("email already registered")
+		}
 
-	// Hash password
-	if err := user.HashPassword(); err != nil {
+		user := &models.User{
+			Email:    req.Email,
+			Username: req.Username,
+			Password: req.Password,
+			FullName: req.FullName,
+		}
+
+		// Hash password
+		if err := user.HashPassword(); err != nil {
+			return err
+		}
+
+		if err := s.repo.Create(txCtx, user); err != nil {
+			return err
+		}
+
+		response = user.ToResponse()
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.Create(user); err != nil {
-		return nil, err
-	}
-
-	response := user.ToResponse()
 	return &response, nil
 }
 
-func (s *userService) Login(req *models.LoginRequest) (string, *models.UserResponse, error) {
-	user, err := s.repo.GetByEmail(req.Email)
+func (s *userService) Login(ctx context.Context, req *models.LoginRequest) (string, *models.UserResponse, error) {
+	user, err := s.repo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return "", nil, errors.New("invalid credentials")
 	}
@@ -68,10 +79,10 @@ func (s *userService) Login(req *models.LoginRequest) (string, *models.UserRespo
 
 	// Generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  user.ID,
-		"email":    user.Email,
-		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(), // 24 hours
+		"user_id": user.ID,
+		"email":   user.Email,
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(), // 24 hours
 	})
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
@@ -83,8 +94,8 @@ func (s *userService) Login(req *models.LoginRequest) (string, *models.UserRespo
 	return tokenString, &response, nil
 }
 
-func (s *userService) GetByID(id uint) (*models.UserResponse, error) {
-	user, err := s.repo.GetByID(id)
+func (s *userService) GetByID(ctx context.Context, id uint) (*models.UserResponse, error) {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +103,8 @@ func (s *userService) GetByID(id uint) (*models.UserResponse, error) {
 	return &response, nil
 }
 
-func (s *userService) GetAll() ([]models.UserResponse, error) {
-	users, err := s.repo.GetAll()
+func (s *userService) GetAll(ctx context.Context) ([]models.UserResponse, error) {
+	users, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -105,28 +116,37 @@ func (s *userService) GetAll() ([]models.UserResponse, error) {
 	return responses, nil
 }
 
-func (s *userService) Update(id uint, updates *models.User) (*models.UserResponse, error) {
-	user, err := s.repo.GetByID(id)
+func (s *userService) Update(ctx context.Context, id uint, updates *models.User) (*models.UserResponse, error) {
+	// Start a transaction for update (even though it's single record, good practice)
+	var response models.UserResponse
+	err := s.repo.WithTransaction(ctx, func(txCtx context.Context) error {
+		user, err := s.repo.GetByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+
+		// Update fields
+		if updates.FullName != "" {
+			user.FullName = updates.FullName
+		}
+		if updates.Username != "" {
+			user.Username = updates.Username
+		}
+
+		if err := s.repo.Update(txCtx, user); err != nil {
+			return err
+		}
+		response = user.ToResponse()
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Update fields
-	if updates.FullName != "" {
-		user.FullName = updates.FullName
-	}
-	if updates.Username != "" {
-		user.Username = updates.Username
-	}
-
-	if err := s.repo.Update(user); err != nil {
-		return nil, err
-	}
-
-	response := user.ToResponse()
 	return &response, nil
 }
 
-func (s *userService) Delete(id uint) error {
-	return s.repo.Delete(id)
+func (s *userService) Delete(ctx context.Context, id uint) error {
+	return s.repo.Delete(ctx, id)
 }

@@ -9,6 +9,7 @@ Project ini adalah REST API boilerplate yang dibangun menggunakan **Go (Golang)*
 - **Development**: Hot reload menggunakan [Air](https://github.com/air-verse/air).
 - **Deployment**: Mendukung Docker & Docker Compose.
 - **Middleware**: CORS, Logger, dan JWT Authentication.
+- **ACID Transactions**: Menggunakan Context propagation untuk operasi atomik yang aman.
 
 ---
 
@@ -34,6 +35,33 @@ Berikut adalah gambaran bagaimana sebuah request diproses:
 4.  **Service**: Menjalankan logika bisnis (misal: hashing password, cek email duplikat), lalu memanggil **Repository**.
 5.  **Repository**: Melakukan operasi ke **Database** menggunakan GORM.
 6.  **Response**: Data dikembalikan dari Repo -> Service -> Handler, lalu Handler mengirim response JSON ke Client.
+
+---
+
+## 🔐 Pola Transaksi (ACID)
+Proyek ini mendukung **Database Transactions** penuh untuk menjaga integritas data (Atomicity, Consistency, Isolation, Durability).
+- **Context-Based**: Transaksi diteruskan secara implisit melalui `context.Context`.
+- **Atomic Service**: Logika bisnis kompleks di Service Layer dapat dibungkus dalam satu transaksi.
+- **Repository Agnostic**: Repository secara otomatis mendeteksi apakah sedang berada dalam transaksi atau tidak.
+
+### Contoh Penggunaan (Service Layer):
+```go
+func (s *userService) RegisterWithProfile(ctx context.Context, req *Request) error {
+    // Mulai transaksi
+    return s.repo.WithTransaction(ctx, func(txCtx context.Context) error {
+        // Semua operasi di sini bersifat ATOMIC (All-or-Nothing)
+        if err := s.userRepo.Create(txCtx, user); err != nil {
+            return err // Otomatis Rollback
+        }
+
+        if err := s.profileRepo.Create(txCtx, profile); err != nil {
+            return err // Otomatis Rollback
+        }
+
+        return nil // Otomatis Commit
+    })
+}
+```
 
 ---
 

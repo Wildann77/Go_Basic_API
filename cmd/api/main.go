@@ -8,6 +8,7 @@ import (
 	"goapi/internal/repository"
 	"goapi/internal/services"
 	"log"
+	"time"
 
 	"fmt"
 
@@ -22,6 +23,12 @@ func main() {
 	db, err := config.InitDB(cfg)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Initialize Redis
+	redisClient, err := config.InitRedis(cfg)
+	if err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
 	}
 
 	// Auto-migrate models
@@ -43,6 +50,9 @@ func main() {
 	router.Use(middleware.CORS())
 	router.Use(middleware.Logger())
 
+	// Global Rate Limiter: 100 requests per minute
+	router.Use(middleware.RateLimiter(redisClient, 100, time.Minute))
+
 	// Health check
 	router.GET("/health", handlers.HealthCheck)
 
@@ -50,8 +60,11 @@ func main() {
 	v1 := router.Group("/api/v1")
 	{
 		// Public routes
-		v1.POST("/register", userHandler.Register)
-		v1.POST("/login", userHandler.Login)
+		// Strict Rate Limiter for Auth: 5 requests per minute
+		authLimiter := middleware.RateLimiter(redisClient, 5, time.Minute)
+
+		v1.POST("/register", authLimiter, userHandler.Register)
+		v1.POST("/login", authLimiter, userHandler.Login)
 
 		// Protected routes
 		authorized := v1.Group("")

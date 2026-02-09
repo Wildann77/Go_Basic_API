@@ -196,6 +196,24 @@ func (s *userService) RegisterWithProfile(ctx context.Context, req *models.Regis
 - **Isolation**: Defaults to PostgreSQL 'Read Committed'. Higher levels can be set per transaction.
 - **Durability**: Managed by PostgreSQL's write-ahead logging (WAL).
 
+```go
+func (s *userService) RegisterWithProfile(ctx context.Context, req *models.RegisterRequest) error {
+    return s.repo.WithTransaction(ctx, func(txCtx context.Context) error {
+        // Step 1: Create User
+        if err := s.repo.Create(txCtx, user); err != nil {
+            return err // Automatically triggers Rollback
+        }
+
+        // Step 2: Create Initial Profile
+        if err := s.profileRepo.Create(txCtx, profile); err != nil {
+            return err // Automatically triggers Rollback
+        }
+
+        return nil // Automatically triggers Commit
+    })
+}
+```
+
 ## Rate Limiting
 
 Implement **Rate Limiting** to protect the API from brute-force attacks and abuse. Use a distributed approach with **Redis**.

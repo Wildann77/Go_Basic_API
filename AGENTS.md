@@ -206,6 +206,39 @@ Use `ulule/limiter` for a robust, distributed rate limiting solution. This ensur
 ### 2. Implementation Pattern
 Define the rate limiter in `internal/middleware` and initialize it with Redis store.
 
+```go
+func RateLimiter(redisClient *redis.Client) gin.HandlerFunc {
+    // 1. Define rate (e.g., 5 requests per second)
+    rate := limiter.Rate{
+        Period: 1 * time.Second,
+        Limit:  5,
+    }
+
+    // 2. Create Redis store
+    store, _ := redisstore.NewStore(redisClient)
+
+    // 3. Create limiter instance
+    instance := limiter.New(store, rate)
+
+    return func(c *gin.Context) {
+        key := c.ClientIP() // Use IP for public or user_id for protected
+        
+        context, err := instance.Get(c, key)
+        if err != nil {
+            c.AbortWithStatusJSON(500, gin.H{"error": "limiter error"})
+            return
+        }
+
+        if context.Reached {
+            c.AbortWithStatusJSON(429, gin.H{"error": "too many requests"})
+            return
+        }
+
+        c.Next()
+    }
+}
+```
+
 ### 3. Application
 - **Global**: Apply to `router.Use()` for general protection.
 - **Route-specific**: Apply to sensitive routes like `/login` or `/register` with stricter limits.

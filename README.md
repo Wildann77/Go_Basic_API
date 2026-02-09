@@ -7,7 +7,7 @@ Project ini adalah REST API boilerplate yang dibangun menggunakan **Go (Golang)*
 - **ORM & Database**: Menggunakan [GORM](https://gorm.io/) dengan PostgreSQL.
 - **Authentication**: Keamanan menggunakan JWT (JSON Web Token).
 - **Rate Limiting**: Pembatasan request berbasis IP menggunakan Redis untuk perlindungan bruteforce & abuse.
-- **Cache & Storage**: Integrasi Redis untuk rate limiting (dan caching di masa depan).
+- **Cache & Storage**: Integrasi Redis untuk rate limiting dan data caching (Cache-Aside Pattern).
 - **Development**: Hot reload menggunakan [Air](https://github.com/air-verse/air).
 - **Deployment**: Mendukung Docker & Docker Compose.
 - **Middleware**: CORS, Logger, Rate Limiter, dan JWT Authentication.
@@ -37,9 +37,11 @@ Berikut adalah gambaran bagaimana sebuah request diproses:
     - **Rate Limiter**: Memastikan client tidak melebihi batas quota request (Redis-backed).
     - **JWT Auth**: Verifikasi token untuk rute yang membutuhkan akses login.
 3.  **Handler**: Menerima request, validasi format JSON, lalu memanggil fungsi di **Service**.
-4.  **Service**: Menjalankan logika bisnis (misal: hashing password, cek email duplikat), lalu memanggil **Repository**.
-5.  **Repository**: Melakukan operasi ke **Database** menggunakan GORM.
-6.  **Response**: Data dikembalikan dari Repo -> Service -> Handler, lalu Handler mengirim response JSON ke Client.
+4.  **Service**:
+    - **Caching Check**: Mencari data di Redis terlebih dahulu (Cache Hit).
+    - **Business Logic**: Jika tidak ada di cache (Cache Miss), lanjut ke logika bisnis dan panggil Repository.
+5.  **Repository**: Melakukan operasi ke **Database** (PostgreSQL) jika data belum terkecached.
+6.  **Response**: Data dikembalikan ke Service (disimpan ke cache jika baru diambil dari DB) -> Handler -> Client.
 
 ---
 
@@ -55,6 +57,13 @@ Proyek ini menggunakan **Distributed Rate Limiting** menggunakan Redis untuk mem
 - **Global Limit**: Membatasi semua request masuk (default: 100 req/menit).
 - **Strict Limit**: Diterapkan pada rute sensitif seperti `/login` dan `/register` (default: 5 req/menit).
 - **Redis-Backed**: Quota request tersimpan secara terpusat di Redis, memungkinkan skalabilitas horizontal (multi-instance).
+---
+
+## ⚡ Caching Strategy
+Proyek ini mengimplementasikan **Cache-Aside Pattern** untuk meningkatkan performa read-heavy operations:
+- **Hit**: Data diambil langsung dari Redis (sangat cepat).
+- **Miss**: Data diambil dari DB, lalu disimpan ke Redis dengan TTL (Time To Live).
+- **Invalidation**: Cache otomatis dihapus saat terjadi update/delete data (Data Consistency).
 ---
 
 ## 🛠️ Persyaratan Sistem

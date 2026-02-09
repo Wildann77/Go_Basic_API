@@ -116,3 +116,5 @@ make run
 | `make clean` | Hapus folder `bin/`. |
 
 ---
+
+Selamat Mencoba !!

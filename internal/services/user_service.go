@@ -7,7 +7,11 @@ import (
 	"goapi/internal/repository"
 	"time"
 
+	"encoding/json"
+	"fmt"
+
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type UserService interface {
@@ -21,12 +25,14 @@ type UserService interface {
 
 type userService struct {
 	repo      repository.UserRepository
+	redis     *redis.Client
 	jwtSecret string
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
+func NewUserService(repo repository.UserRepository, redisClient *redis.Client) UserService {
 	return &userService{
 		repo:      repo,
+		redis:     redisClient,
 		jwtSecret: "your-secret-key-change-in-production",
 	}
 }
@@ -95,11 +101,29 @@ func (s *userService) Login(ctx context.Context, req *models.LoginRequest) (stri
 }
 
 func (s *userService) GetByID(ctx context.Context, id uint) (*models.UserResponse, error) {
+	cacheKey := fmt.Sprintf("user:%d", id)
+
+	// 1. Try Cache
+	val, err := s.redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var cachedUser models.UserResponse
+		if err := json.Unmarshal([]byte(val), &cachedUser); err == nil {
+			return &cachedUser, nil
+		}
+	}
+
+	// 2. Cache Miss - Query DB
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	response := user.ToResponse()
+
+	// 3. Set Cache (TTL 10 mins)
+	if data, err := json.Marshal(response); err == nil {
+		s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
+	}
+
 	return &response, nil
 }
 
@@ -136,6 +160,11 @@ func (s *userService) Update(ctx context.Context, id uint, updates *models.User)
 		if err := s.repo.Update(txCtx, user); err != nil {
 			return err
 		}
+
+		// Invalidate cache
+		cacheKey := fmt.Sprintf("user:%d", id)
+		s.redis.Del(ctx, cacheKey)
+
 		response = user.ToResponse()
 		return nil
 	})
@@ -148,5 +177,9 @@ func (s *userService) Update(ctx context.Context, id uint, updates *models.User)
 }
 
 func (s *userService) Delete(ctx context.Context, id uint) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	// Invalidate cache
+	return s.redis.Del(ctx, fmt.Sprintf("user:%d", id)).Err()
 }

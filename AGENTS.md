@@ -261,6 +261,62 @@ func RateLimiter(redisClient *redis.Client) gin.HandlerFunc {
 - **Global**: Apply to `router.Use()` for general protection.
 - **Route-specific**: Apply to sensitive routes like `/login` or `/register` with stricter limits.
 
+## Redis Caching
+
+Use **Redis** for caching expensive database queries or frequently accessed data using the **Cache-Aside** pattern.
+
+### 1. The Strategy: Cache-Aside
+1. Check if data exists in Redis.
+2. If found (**Cache Hit**), return the data immediately.
+3. If not found (**Cache Miss**), query the Database.
+4. Store the result in Redis with a **TTL (Time To Live)** and return it.
+
+### 2. Implementation Pattern
+Caching should be handled in the **Service Layer** to keep the Repository clean and allow business logic to decide when to cache.
+
+```go
+func (s *userService) GetByID(ctx context.Context, id uint) (*models.User, error) {
+    cacheKey := fmt.Sprintf("user:%d", id)
+
+    // 1. Try to get from Cache
+    cachedData, err := s.redis.Get(ctx, cacheKey).Result()
+    if err == nil {
+        var user models.User
+        if json.Unmarshal([]byte(cachedData), &user) == nil {
+            return &user, nil
+        }
+    }
+
+    // 2. Cache Miss - Get from DB
+    user, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, err
+    }
+
+    // 3. Store in Cache (with TTL, e.g., 10 minutes)
+    jsonData, _ := json.Marshal(user)
+    s.redis.Set(ctx, cacheKey, jsonData, 10*time.Minute)
+
+    return user, nil
+}
+```
+
+### 3. Data Invalidation
+Always invalidate (delete) the cache when data is updated or deleted to maintain consistency.
+
+```go
+func (s *userService) Update(ctx context.Context, user *models.User) error {
+    if err := s.repo.Update(user); err != nil {
+        return err
+    }
+    
+    // Invalidate cache
+    cacheKey := fmt.Sprintf("user:%d", user.ID)
+    s.redis.Del(ctx, cacheKey)
+    return nil
+}
+```
+
 ### Service Interface Pattern
 ```go
 type UserService interface {

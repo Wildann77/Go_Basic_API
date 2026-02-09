@@ -40,7 +40,7 @@ func main() {
 
 	// Initialize repository, service, handler
 	userRepo := repository.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
+	userService := services.NewUserService(userRepo, redisClient)
 	userHandler := handlers.NewUserHandler(userService)
 
 	// Setup Gin router

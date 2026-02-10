@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +29,20 @@ func SuccessResponse(c *gin.Context, status int, message string, data interface{
 }
 
 func ErrorResponse(c *gin.Context, status int, message string, err interface{}) {
+	if err != nil {
+		// Attach error to context for logging middleware
+		var e error
+		switch v := err.(type) {
+		case error:
+			e = v
+		case string:
+			e = fmt.Errorf("%s", v)
+		default:
+			e = fmt.Errorf("%v", v)
+		}
+		_ = c.Error(e) // Add to Gin errors
+	}
+
 	c.JSON(status, Response{
 		Success: false,
 		Message: message,

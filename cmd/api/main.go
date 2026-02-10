@@ -50,7 +50,7 @@ func main() {
 
 	// Setup Gin router (Use New() to avoid default Logger)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(middleware.CustomRecovery())
 
 	// Global middleware
 	router.Use(middleware.RequestID()) // Add Request ID first

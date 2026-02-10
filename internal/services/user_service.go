@@ -5,6 +5,7 @@ import (
 	"errors"
 	"goapi/internal/models"
 	"goapi/internal/repository"
+	"goapi/pkg/logger"
 	"time"
 
 	"encoding/json"
@@ -67,9 +68,11 @@ func (s *userService) Register(ctx context.Context, req *models.RegisterRequest)
 	})
 
 	if err != nil {
+		logger.WithContext(ctx).Error("Failed to register user", "email", req.Email, "error", err)
 		return nil, err
 	}
 
+	logger.WithContext(ctx).Info("User registered successfully", "user_id", response.ID, "email", response.Email)
 	return &response, nil
 }
 
@@ -93,9 +96,11 @@ func (s *userService) Login(ctx context.Context, req *models.LoginRequest) (stri
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
+		logger.WithContext(ctx).Error("Failed to sign token", "error", err)
 		return "", nil, err
 	}
 
+	logger.WithContext(ctx).Info("User logged in", "user_id", user.ID)
 	response := user.ToResponse()
 	return tokenString, &response, nil
 }

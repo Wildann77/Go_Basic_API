@@ -49,7 +49,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService)
 
 	postRepo := repository.NewPostRepository(db)
-	postService := services.NewPostService(postRepo)
+	postService := services.NewPostService(postRepo, redisClient)
 	postHandler := handlers.NewPostHandler(postService)
 
 	// Setup Gin router (Use New() to avoid default Logger)

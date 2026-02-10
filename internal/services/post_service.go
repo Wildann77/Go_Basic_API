@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 
+	"encoding/json"
+	"fmt"
 	"goapi/internal/models"
 	"goapi/internal/repository"
 	"goapi/pkg/logger"
 	"goapi/pkg/utils"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type PostService interface {
@@ -19,11 +24,15 @@ type PostService interface {
 }
 
 type postService struct {
-	repo repository.PostRepository
+	repo  repository.PostRepository
+	redis *redis.Client
 }
 
-func NewPostService(repo repository.PostRepository) PostService {
-	return &postService{repo: repo}
+func NewPostService(repo repository.PostRepository, redisClient *redis.Client) PostService {
+	return &postService{
+		repo:  repo,
+		redis: redisClient,
+	}
 }
 
 func (s *postService) Create(ctx context.Context, req *models.CreatePostRequest, userID uint) (*models.PostResponse, error) {
@@ -50,6 +59,18 @@ func (s *postService) Create(ctx context.Context, req *models.CreatePostRequest,
 }
 
 func (s *postService) GetByID(ctx context.Context, id uint) (*models.PostResponse, error) {
+	cacheKey := fmt.Sprintf("post:%d", id)
+
+	// 1. Try Cache
+	val, err := s.redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var cachedPost models.PostResponse
+		if err := json.Unmarshal([]byte(val), &cachedPost); err == nil {
+			return &cachedPost, nil
+		}
+	}
+
+	// 2. Cache Miss - Query DB
 	post, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -63,6 +84,12 @@ func (s *postService) GetByID(ctx context.Context, id uint) (*models.PostRespons
 
 	post.User = user
 	response := post.ToResponse()
+
+	// 3. Set Cache (TTL 10 mins)
+	if data, err := json.Marshal(response); err == nil {
+		s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
+	}
+
 	return &response, nil
 }
 
@@ -132,5 +159,10 @@ func (s *postService) Delete(ctx context.Context, id uint, userID uint) error {
 		return errors.New("unauthorized to delete this post")
 	}
 
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// Invalidate cache
+	return s.redis.Del(ctx, fmt.Sprintf("post:%d", id)).Err()
 }

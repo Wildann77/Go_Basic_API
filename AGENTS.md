@@ -13,7 +13,9 @@ internal/
   repository/     # Data access layer
   models/         # Data models and DTOs
   middleware/     # HTTP middleware
-pkg/utils/        # Utility functions
+pkg/
+  utils/          # Utility functions
+  logger/         # Structured logger (slog)
 ```
 
 **Architecture Pattern**: Clean Architecture with dependency injection
@@ -125,15 +127,15 @@ type User struct {
 ```
 
 ### Error Handling
-- Return errors, don't log in business logic
-- Use `errors.New()` for simple errors
-- Check `gorm.ErrRecordNotFound` for database operations
-- Handlers use `utils.ErrorResponse()` for consistent error format
+- Return errors from Service and Repository layers.
+- **Handlers** use `utils.ErrorResponse()` for consistent error format.
+- `utils.ErrorResponse` automatically logs the error to the structured logger via Gin context.
+- Check `gorm.ErrRecordNotFound` for database operations.
 
 ```go
-func (r *userRepository) GetByID(id uint) (*models.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id uint) (*models.User, error) {
     var user models.User
-    if err := r.db.First(&user, id).Error; err != nil {
+    if err := utils.GetDBFromContext(ctx, r.db).First(&user, id).Error; err != nil {
         if errors.Is(err, gorm.ErrRecordNotFound) {
             return nil, errors.New("user not found")
         }
@@ -390,6 +392,47 @@ type AuditLog struct {
 2.  **Index Selective Columns**: Avoid indexing columns with low cardinality (e.g., Boolean fields like `is_deleted` unless part of a composite index).
 3.  **Order Matters in Composite Indexes**: Place the most selective column (the one that filters out the most rows) first.
 4.  **Covering Indexes**: Aim for indexes that contain all columns required by the query to avoid table lookups.
+
+## Logging & Observability
+
+This project uses structured logging and distributed tracing patterns for better observability.
+
+### 1. Structured Logging with `slog`
+Use the custom logger in `pkg/logger` for all application logs. Logs are output in JSON format.
+
+```go
+import "goapi/pkg/logger"
+
+// Simple logging
+logger.Info("Message", "key", value)
+logger.Error("Failed operation", "error", err)
+
+// Context-aware logging (includes RequestID)
+logger.WithContext(ctx).Info("User action", "user_id", id)
+```
+
+### 2. Request Identification
+The `RequestID` middleware generates or propagates a unique ID for every HTTP request.
+- **Key**: `RequestID` (accessible via `c.GetString("RequestID")`)
+- **Header**: `X-Request-ID`
+
+### 3. Custom Recovery
+The `CustomRecovery` middleware catches panics, logs the stack trace in a structured format, and returns a sanitized JSON error to the client including the `request_id`.
+
+### 4. Health Checks
+The `/health` endpoint performs real-time checks on:
+- **Database**: Ping to ensure PostgreSQL is reachable.
+- **Redis**: Ping to ensure Redis is reachable.
+
+```json
+{
+  "status": "healthy",
+  "components": {
+    "db": "up",
+    "redis": "up"
+  }
+}
+```
 
 ## Important Notes
 

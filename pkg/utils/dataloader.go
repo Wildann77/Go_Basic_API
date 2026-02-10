@@ -31,11 +31,10 @@ func GetLoadersFromContext(ctx context.Context) *Loaders {
 	return loaders
 }
 
-// UserBatchFunc is the batch function signature for loading users
-type UserBatchFunc func(ctx context.Context, keys []uint) []*dataloader.Result[*models.User]
-
 // NewLoaders creates a new instance of Loaders with configured dataloaders
-func NewLoaders(userBatchFn UserBatchFunc) *Loaders {
+func NewLoaders(
+	userBatchFn func(ctx context.Context, keys []uint) []*dataloader.Result[*models.User],
+) *Loaders {
 	// Configure batch function for user loader
 	userLoader := dataloader.NewBatchedLoader(
 		userBatchFn,

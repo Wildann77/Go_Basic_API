@@ -61,25 +61,29 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 }
 
 // GetAllPosts retrieves all posts (demonstrates DataLoader batching)
+// Supports optional ?user_id=X query parameter to filter by user
 func (h *PostHandler) GetAllPosts(c *gin.Context) {
+	// Check if filtering by user_id
+	userIDParam := c.Query("user_id")
+	if userIDParam != "" {
+		userID, err := strconv.ParseUint(userIDParam, 10, 32)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID", err.Error())
+			return
+		}
+
+		posts, err := h.service.GetByUserID(c.Request.Context(), uint(userID))
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve posts", err.Error())
+			return
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Posts retrieved successfully", posts)
+		return
+	}
+
+	// Get all posts
 	posts, err := h.service.GetAll(c.Request.Context())
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve posts", err.Error())
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Posts retrieved successfully", posts)
-}
-
-// GetUserPosts retrieves all posts by a specific user
-func (h *PostHandler) GetUserPosts(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID", err.Error())
-		return
-	}
-
-	posts, err := h.service.GetByUserID(c.Request.Context(), uint(userID))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve posts", err.Error())
 		return

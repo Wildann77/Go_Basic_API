@@ -48,6 +48,10 @@ func main() {
 	userService := services.NewUserService(userRepo, redisClient)
 	userHandler := handlers.NewUserHandler(userService)
 
+	postRepo := repository.NewPostRepository(db)
+	postService := services.NewPostService(postRepo)
+	postHandler := handlers.NewPostHandler(postService)
+
 	// Setup Gin router (Use New() to avoid default Logger)
 	router := gin.New()
 	router.Use(middleware.CustomRecovery())
@@ -56,6 +60,7 @@ func main() {
 	router.Use(middleware.RequestID()) // Add Request ID first
 	router.Use(middleware.Logger())    // Add Custom Logger
 	router.Use(middleware.CORS())
+	router.Use(middleware.DataLoaderMiddleware(userRepo)) // Add DataLoader for N+1 prevention
 
 	// Global Rate Limiter: 100 requests per minute
 	router.Use(middleware.RateLimiter(redisClient, 100, time.Minute))
@@ -78,11 +83,18 @@ func main() {
 		authorized := v1.Group("")
 		authorized.Use(middleware.JWTAuth())
 		{
+			// User routes
 			authorized.GET("/users", userHandler.GetAllUsers)
 			authorized.GET("/users/:id", userHandler.GetUserByID)
 			authorized.PUT("/users/:id", userHandler.UpdateUser)
 			authorized.DELETE("/users/:id", userHandler.DeleteUser)
 			authorized.GET("/me", userHandler.GetCurrentUser)
+
+			// Post routes (demonstrates DataLoader usage)
+			authorized.POST("/posts", postHandler.CreatePost)
+			authorized.GET("/posts", postHandler.GetAllPosts) // Batches user loading, supports ?user_id=X
+			authorized.GET("/posts/:id", postHandler.GetPost)
+			authorized.DELETE("/posts/:id", postHandler.DeletePost)
 		}
 	}
 

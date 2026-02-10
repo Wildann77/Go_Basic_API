@@ -391,8 +391,6 @@ type AuditLog struct {
 1.  **Don't Over-Index**: Every index adds overhead to `INSERT`, `UPDATE`, and `DELETE` operations.
 2.  **Index Selective Columns**: Avoid indexing columns with low cardinality (e.g., Boolean fields like `is_deleted` unless part of a composite index).
 3.  **Order Matters in Composite Indexes**: Place the most selective column (the one that filters out the most rows) first.
-4.  **Covering Indexes**: Aim for indexes that contain all columns required by the query to avoid table lookups.
-
 ## N+1 Problem Resolution (DataLoader)
 
 Efficiently resolve the **N+1 query problem** by batching and caching database requests. While GORM's `Preload` is suitable for simple cases, **DataLoader** is preferred for complex, nested, or dynamic relationships.
@@ -403,58 +401,126 @@ Efficiently resolve the **N+1 query problem** by batching and caching database r
 - **Isolation**: DataLoaders are request-scoped to prevent data leakage between different users/requests.
 
 ### 2. Implementation Pattern (DataLoader)
-Use a batching library like `github.com/graph-gophers/dataloader`. The implementation is split between the Repository and a middleware/service glue.
+The implementation uses `github.com/graph-gophers/dataloader/v7` and is split across multiple layers.
 
 #### Repository Layer (Batch Fetcher)
+Add a batch method to your repository that fetches multiple records in one query:
+
 ```go
-func (r *userRepository) GetUsersByIDs(ctx context.Context, keys dataloader.Keys) []*dataloader.Result {
-    ids := make([]uint, len(keys))
-    for i, key := range keys {
-        ids[i] = key.Raw().(uint)
-    }
-
+func (r *userRepository) GetUsersByIDs(ctx context.Context, ids []uint) (map[uint]*models.User, error) {
+    db := utils.GetDBFromContext(ctx, r.db)
+    
     var users []models.User
-    r.db.Where("id IN ?", ids).Find(&users)
-
-    // Map to preserve order and handle missing records
-    userMap := make(map[uint]*models.User)
+    if err := db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+        return nil, err
+    }
+    
+    // Map users by ID to preserve order and handle missing records
+    userMap := make(map[uint]*models.User, len(users))
     for i := range users {
         userMap[users[i].ID] = &users[i]
     }
+    
+    return userMap, nil
+}
+```
 
-    results := make([]*dataloader.Result, len(keys))
-    for i, key := range keys {
-        id := key.Raw().(uint)
-        if user, ok := userMap[id]; ok {
-            results[i] = &dataloader.Result{Data: user}
-        } else {
-            results[i] = &dataloader.Result{Error: fmt.Errorf("user %d not found", id)}
+#### Middleware Layer (Request Scoping)
+Create a middleware that initializes DataLoaders for each request:
+
+```go
+func DataLoaderMiddleware(userRepo repository.UserRepository) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // Create batch function for users
+        userBatchFn := func(ctx context.Context, keys []uint) []*dataloader.Result[*models.User] {
+            userMap, err := userRepo.GetUsersByIDs(ctx, keys)
+            
+            results := make([]*dataloader.Result[*models.User], len(keys))
+            for i, key := range keys {
+                if err != nil {
+                    results[i] = &dataloader.Result[*models.User]{Error: err}
+                    continue
+                }
+                
+                user, found := userMap[key]
+                if !found {
+                    results[i] = &dataloader.Result[*models.User]{Data: nil}
+                } else {
+                    results[i] = &dataloader.Result[*models.User]{Data: user}
+                }
+            }
+            return results
         }
+
+        loaders := utils.NewLoaders(userBatchFn)
+        ctx := context.WithValue(c.Request.Context(), utils.LoaderKey, loaders)
+        c.Request = c.Request.WithContext(ctx)
+        c.Next()
     }
-    return results
 }
 ```
 
 ### 3. Usage in Services
-Services should use the loader to resolve dependencies lazily.
+Services use the loader to resolve dependencies lazily and efficiently:
 
 ```go
-func (s *postService) EnrichPost(ctx context.Context, post *models.Post) {
-    // Get loader from context
-    loader := utils.GetLoaderFromContext(ctx)
+func (s *postService) GetAll(ctx context.Context) ([]models.PostResponse, error) {
+    posts, err := s.repo.GetAll(ctx)
+    if err != nil {
+        return nil, err
+    }
+
+    // Collect all user IDs
+    userIDs := make([]uint, 0, len(posts))
+    for _, post := range posts {
+        userIDs = append(userIDs, post.UserID)
+    }
+
+    // Batch load all users at once (solves N+1 problem)
+    users, errs := utils.LoadUsers(ctx, userIDs)
     
-    // Load author (this will be batched with other requests in the same lifecycle)
-    thunk := loader.Load(ctx, dataloader.StringKey(fmt.Sprint(post.UserID)))
-    result, _ := thunk()
-    
-    post.Author = result.(*models.User)
+    // Create a map for quick lookup
+    userMap := make(map[uint]*models.User)
+    for i, user := range users {
+        if errs[i] == nil && user != nil {
+            userMap[userIDs[i]] = user
+        }
+    }
+
+    // Build responses with loaded users
+    responses := make([]models.PostResponse, len(posts))
+    for i, post := range posts {
+        post.User = userMap[post.UserID]
+        responses[i] = post.ToResponse()
+    }
+
+    return responses, nil
 }
 ```
 
-### 4. Best Practices
+### 4. Integration in Main
+Register the middleware globally or for specific route groups:
+
+```go
+router.Use(middleware.DataLoaderMiddleware(userRepo))
+```
+
+### 5. Best Practices
 1.  **Request Scoping**: Always initialize new loaders in a middleware for each request.
 2.  **Concurrency**: DataLoader handles concurrency automatically; use it to resolve multiple types of entities in parallel.
 3.  **Fallback to Preload**: For simple 1:1 or 1:N relations that are always needed, GORM's `.Preload()` is still acceptable and often more performant than a DataLoader for REST endpoints.
+4.  **Error Handling**: DataLoader returns errors per-key, allowing partial success scenarios.
+5.  **Batch Size**: Configure batch capacity based on your use case (default: 100).
+
+### 6. Example Use Case
+The project includes a **Post** model that demonstrates DataLoader usage:
+- `GET /api/v1/posts` - Fetches all posts and batches author loading (prevents N+1)
+- `GET /api/v1/posts?user_id=X` - Fetches posts by specific user with efficient author loading
+- `POST /api/v1/posts` - Create a new post
+- `GET /api/v1/posts/:id` - Get a single post with author
+- `DELETE /api/v1/posts/:id` - Delete a post (owner only)
+
+
 
 
 ## Logging & Observability

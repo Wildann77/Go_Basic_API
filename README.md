@@ -66,6 +66,15 @@ Proyek ini mengimplementasikan **Cache-Aside Pattern** untuk meningkatkan perfor
 - **Invalidation**: Cache otomatis dihapus saat terjadi update/delete data (Data Consistency).
 ---
 
+## 🗂️ Database Indexes
+Optimasi pencarian dan pengurutan data dilakukan menggunakan **Strategic Indexing** pada level database:
+- **Unique Indexes**: Menjamin keunikan data sekaligus mempercepat lookup (Email, Username).
+- **Search Optimization**: Index pada kolom `full_name` untuk pencarian user yang efisien.
+- **Filtering Optimization**: Index pada kolom `active` untuk mempercepat filtering status.
+- **Sorting Optimization**: Index descending pada `created_at` untuk mendukung sinkronisasi data terbaru dengan performa tinggi.
+- **GORM Integrated**: Semua index dikelola langsung melalui struct tags di GORM models untuk kemudahan pemeliharaan schema.
+---
+
 ## 🛠️ Persyaratan Sistem
 - **Go**: 1.23+
 - **Docker & Docker Compose**

@@ -12,10 +12,10 @@ type User struct {
 	Email     string         `json:"email" gorm:"uniqueIndex;not null"`
 	Username  string         `json:"username" gorm:"uniqueIndex;not null"`
 	Password  string         `json:"-" gorm:"not null"` // Don't expose in JSON
-	FullName  string         `json:"full_name"`
+	FullName  string         `json:"full_name" gorm:"index"`
 	Role      string         `json:"role" gorm:"default:'user'"`
-	Active    bool           `json:"active" gorm:"default:true"`
-	CreatedAt time.Time      `json:"created_at"`
+	Active    bool           `json:"active" gorm:"default:true;index"`
+	CreatedAt time.Time      `json:"created_at" gorm:"index:,sort:desc"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }

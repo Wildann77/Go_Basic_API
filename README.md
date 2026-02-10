@@ -40,13 +40,23 @@ Berikut adalah gambaran bagaimana sebuah request diproses:
     - **CORS & Logger**: Menangani request origin dan pencatatan log terstruktur (JSON).
     - **Custom Recovery**: Melindungi aplikasi dari panic dan melog stack trace secara otomatis.
     - **Rate Limiter**: Memastikan client tidak melebihi batas quota request (Redis-backed).
+    - **DataLoader**: Inisialisasi request-scoped batch loader untuk mencegah masalah N+1 pada relasi kompleks.
     - **JWT Auth**: Verifikasi token untuk rute yang membutuhkan akses login.
 3.  **Handler**: Menerima request, validasi format JSON, lalu memanggil fungsi di **Service**.
 4.  **Service**:
     - **Caching Check**: Mencari data di Redis terlebih dahulu (Cache Hit).
     - **Business Logic**: Jika tidak ada di cache (Cache Miss), lanjut ke logika bisnis dan panggil Repository.
+    - **Batch Loading**: Menggunakan DataLoader untuk mengambil data relasi (seperti Author pada Post) secara efisien dalam satu batch query.
 5.  **Repository**: Melakukan operasi ke **Database** (PostgreSQL) jika data belum terkecached.
 6.  **Response**: Data dikembalikan ke Service (disimpan ke cache jika baru diambil dari DB) -> Handler -> Client.
+
+---
+
+## 🚀 Resolusi N+1 (DataLoader)
+Proyek ini mengimplementasikan pola **DataLoader** untuk menangani pengambilan data relasi yang efisien:
+- **Batching**: Mengumpulkan banyak request pengambilan data (misal: user by ID) dan mengeksekusinya dalam satu query `WHERE id IN (...)`.
+- **Request Scoped**: Setiap request memiliki instance loader-nya sendiri untuk keamanan data dan isolasi.
+- **Lazy Loading**: Data hanya diambil saat dibutuhkan oleh service layer melalui *thunk* execution.
 
 ---
 

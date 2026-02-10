@@ -10,8 +10,9 @@ Project ini adalah REST API boilerplate yang dibangun menggunakan **Go (Golang)*
 - **Cache & Storage**: Integrasi Redis untuk rate limiting dan data caching (Cache-Aside Pattern).
 - **Development**: Hot reload menggunakan [Air](https://github.com/air-verse/air).
 - **Deployment**: Mendukung Docker & Docker Compose.
-- **Middleware**: CORS, Logger, Rate Limiter, dan JWT Authentication.
 - **ACID Transactions**: Menggunakan Context propagation untuk operasi atomik yang aman.
+- **Observability**: Structured Logging (JSON), Request ID tracking, dan Health Check yang mendalam.
+- **Error Handling**: Custom Recovery middleware untuk menangani panic dan mencatat log secara aman.
 
 ---
 
@@ -33,7 +34,9 @@ Berikut adalah gambaran bagaimana sebuah request diproses:
 
 1.  **Client**: Mengirim request ke endpoint (misal: `POST /api/v1/register`).
 2.  **Middleware**: Request diperiksa oleh beberapa layer:
-    - **CORS & Logger**: Menangani request origin dan pencatatan log.
+    - **Request ID**: Setiap request diberikan ID unik (`X-Request-ID`) untuk tracking log.
+    - **CORS & Logger**: Menangani request origin dan pencatatan log terstruktur (JSON).
+    - **Custom Recovery**: Melindungi aplikasi dari panic dan melog stack trace secara otomatis.
     - **Rate Limiter**: Memastikan client tidak melebihi batas quota request (Redis-backed).
     - **JWT Auth**: Verifikasi token untuk rute yang membutuhkan akses login.
 3.  **Handler**: Menerima request, validasi format JSON, lalu memanggil fungsi di **Service**.
@@ -73,6 +76,16 @@ Optimasi pencarian dan pengurutan data dilakukan menggunakan **Strategic Indexin
 - **Filtering Optimization**: Index pada kolom `active` untuk mempercepat filtering status.
 - **Sorting Optimization**: Index descending pada `created_at` untuk mendukung sinkronisasi data terbaru dengan performa tinggi.
 - **GORM Integrated**: Semua index dikelola langsung melalui struct tags di GORM models untuk kemudahan pemeliharaan schema.
+---
+
+## 🩺 Observability & Monitoring
+Proyek ini dirancang agar mudah dimonitor di production:
+- **Structured Logging**: Menggunakan `log/slog` dengan output JSON (Standar Cloud-Native). Log menyertakan `latency`, `request_id`, `ip`, dan `user_agent`.
+- **Request Identification**: Mendukung `X-Request-ID` di header response dan logs, memungkinkan penelusuran satu request dari awal hingga akhir (Distributed Tracing ready).
+- **Health Check**: Endpoint `/health` memantau kesehatan semua komponen:
+  - **PostgreSQL**: Melakukan ping ke DB.
+  - **Redis**: Melakukan ping ke Redis cluster.
+- **Panic Protection**: Middleware recovery kustom menjamin aplikasi tetap hidup meski terjadi error fatal di goroutine, sambil mencatat detil stack trace ke log sistem.
 ---
 
 ## 🛠️ Persyaratan Sistem

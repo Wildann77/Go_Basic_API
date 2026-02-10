@@ -393,6 +393,70 @@ type AuditLog struct {
 3.  **Order Matters in Composite Indexes**: Place the most selective column (the one that filters out the most rows) first.
 4.  **Covering Indexes**: Aim for indexes that contain all columns required by the query to avoid table lookups.
 
+## N+1 Problem Resolution (DataLoader)
+
+Efficiently resolve the **N+1 query problem** by batching and caching database requests. While GORM's `Preload` is suitable for simple cases, **DataLoader** is preferred for complex, nested, or dynamic relationships.
+
+### 1. The Strategy: Batch Loading
+- **Batching**: Instead of executing $N$ queries for $N$ records, the application collects IDs and executes **one** query (e.g., `WHERE id IN (...)`).
+- **Caching**: Results are cached within the scope of a single request to avoid redundant lookups.
+- **Isolation**: DataLoaders are request-scoped to prevent data leakage between different users/requests.
+
+### 2. Implementation Pattern (DataLoader)
+Use a batching library like `github.com/graph-gophers/dataloader`. The implementation is split between the Repository and a middleware/service glue.
+
+#### Repository Layer (Batch Fetcher)
+```go
+func (r *userRepository) GetUsersByIDs(ctx context.Context, keys dataloader.Keys) []*dataloader.Result {
+    ids := make([]uint, len(keys))
+    for i, key := range keys {
+        ids[i] = key.Raw().(uint)
+    }
+
+    var users []models.User
+    r.db.Where("id IN ?", ids).Find(&users)
+
+    // Map to preserve order and handle missing records
+    userMap := make(map[uint]*models.User)
+    for i := range users {
+        userMap[users[i].ID] = &users[i]
+    }
+
+    results := make([]*dataloader.Result, len(keys))
+    for i, key := range keys {
+        id := key.Raw().(uint)
+        if user, ok := userMap[id]; ok {
+            results[i] = &dataloader.Result{Data: user}
+        } else {
+            results[i] = &dataloader.Result{Error: fmt.Errorf("user %d not found", id)}
+        }
+    }
+    return results
+}
+```
+
+### 3. Usage in Services
+Services should use the loader to resolve dependencies lazily.
+
+```go
+func (s *postService) EnrichPost(ctx context.Context, post *models.Post) {
+    // Get loader from context
+    loader := utils.GetLoaderFromContext(ctx)
+    
+    // Load author (this will be batched with other requests in the same lifecycle)
+    thunk := loader.Load(ctx, dataloader.StringKey(fmt.Sprint(post.UserID)))
+    result, _ := thunk()
+    
+    post.Author = result.(*models.User)
+}
+```
+
+### 4. Best Practices
+1.  **Request Scoping**: Always initialize new loaders in a middleware for each request.
+2.  **Concurrency**: DataLoader handles concurrency automatically; use it to resolve multiple types of entities in parallel.
+3.  **Fallback to Preload**: For simple 1:1 or 1:N relations that are always needed, GORM's `.Preload()` is still acceptable and often more performant than a DataLoader for REST endpoints.
+
+
 ## Logging & Observability
 
 This project uses structured logging and distributed tracing patterns for better observability.

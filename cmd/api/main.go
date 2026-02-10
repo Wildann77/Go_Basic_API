@@ -12,10 +12,15 @@ import (
 
 	"fmt"
 
+	"goapi/pkg/logger"
+
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// Initialize Logger
+	logger.Init()
+
 	// Load config
 	cfg := config.Load()
 
@@ -43,12 +48,14 @@ func main() {
 	userService := services.NewUserService(userRepo, redisClient)
 	userHandler := handlers.NewUserHandler(userService)
 
-	// Setup Gin router
-	router := gin.Default()
+	// Setup Gin router (Use New() to avoid default Logger)
+	router := gin.New()
+	router.Use(gin.Recovery())
 
 	// Global middleware
+	router.Use(middleware.RequestID()) // Add Request ID first
+	router.Use(middleware.Logger())    // Add Custom Logger
 	router.Use(middleware.CORS())
-	router.Use(middleware.Logger())
 
 	// Global Rate Limiter: 100 requests per minute
 	router.Use(middleware.RateLimiter(redisClient, 100, time.Minute))

@@ -61,7 +61,8 @@ func main() {
 	router.Use(middleware.RateLimiter(redisClient, 100, time.Minute))
 
 	// Health check
-	router.GET("/health", handlers.HealthCheck)
+	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	router.GET("/health", healthHandler.Check)
 
 	// API routes v1
 	v1 := router.Group("/api/v1")

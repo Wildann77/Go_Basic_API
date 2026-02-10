@@ -28,7 +28,7 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 	}
 
 	// Get user ID from JWT claims
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "user not authenticated")
 		return
@@ -101,7 +101,7 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 	}
 
 	// Get user ID from JWT claims
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", "user not authenticated")
 		return

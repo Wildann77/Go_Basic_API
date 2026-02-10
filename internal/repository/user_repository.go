@@ -14,6 +14,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id uint) (*models.User, error)
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
 	GetAll(ctx context.Context) ([]models.User, error)
+	GetUsersByIDs(ctx context.Context, ids []uint) (map[uint]*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uint) error
 	WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error
@@ -72,6 +73,24 @@ func (r *userRepository) GetAll(ctx context.Context) ([]models.User, error) {
 func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 	db := utils.GetDBFromContext(ctx, r.db)
 	return db.Save(user).Error
+}
+
+// GetUsersByIDs retrieves multiple users by their IDs in a single query (for DataLoader)
+func (r *userRepository) GetUsersByIDs(ctx context.Context, ids []uint) (map[uint]*models.User, error) {
+	db := utils.GetDBFromContext(ctx, r.db)
+
+	var users []models.User
+	if err := db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+
+	// Map users by ID to preserve order and handle missing records
+	userMap := make(map[uint]*models.User, len(users))
+	for i := range users {
+		userMap[users[i].ID] = &users[i]
+	}
+
+	return userMap, nil
 }
 
 func (r *userRepository) Delete(ctx context.Context, id uint) error {

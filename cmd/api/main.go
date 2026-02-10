@@ -38,7 +38,7 @@ func main() {
 
 	// Auto-migrate models
 	log.Println("Run database migration...")
-	err = db.AutoMigrate(&models.User{})
+	err = db.AutoMigrate(&models.User{}, &models.Post{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

@@ -6,11 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type contextKey string
+type dbContextKey string
 
 const (
 	// TxKey is the key used to store the transaction in the context
-	TxKey contextKey = "tx_key"
+	TxKey dbContextKey = "tx_key"
 )
 
 // GetDBFromContext returns the transaction from the context if it exists,

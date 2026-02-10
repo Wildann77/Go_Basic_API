@@ -25,7 +25,9 @@ Proyek ini menggunakan pemisahan layer untuk memastikan kode mudah di-maintain:
 - `internal/services/`: Layer logika bisnis (Core Logic).
 - `internal/repository/`: Layer data akses. Berinteraksi langsung dengan Database.
 - `internal/models/`: Definisi struct data dan schema database.
-- `internal/middleware/`: Fungsi penghalang (Interceptor) seperti auth dan logger.
+- `internal/middleware/`: Fungsi penghalang (Interceptor) seperti auth, logger, dan recovery.
+- `pkg/logger/`: Library structured logging berbasis `log/slog`.
+- `pkg/utils/`: Library pendukung untuk response dan database context.
 
 ---
 

@@ -349,6 +349,48 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 }
 ```
 
+## Database Indexes
+
+Optimize query performance by implementing strategic **Database Indexes**. In this project, we use **GORM tags** to manage indexes directly in the models.
+
+### 1. The Strategy: Query-Driven Indexing
+Apply indexes based on common query patterns:
+- **Unique Indexes**: For fields that must be unique (e.g., `email`, `username`).
+- **Single Column Indexes**: For fields used frequently in `WHERE` clauses (e.g., `status`, `active`).
+- **Composite Indexes**: For queries involving multiple columns (e.g., `WHERE user_id = ? AND status = ?`).
+- **Partial/Conditional Indexes**: For indexing a subset of rows (PostgreSQL specific).
+
+### 2. Implementation Pattern
+Define indexes using `gorm` tags in the **Model Structs**.
+
+```go
+type User struct {
+    ID        uint      `gorm:"primaryKey"`
+    Email     string    `gorm:"uniqueIndex;not null"` // Unique Index
+    Username  string    `gorm:"uniqueIndex;not null"` // Unique Index
+    Status    string    `gorm:"index"`                // Regular Index
+    CreatedAt time.Time `gorm:"index:,sort:desc"`     // Index with sorting
+}
+```
+
+### 3. Composite Indexes
+For queries that filter by multiple fields, use named indexes to group columns.
+
+```go
+type AuditLog struct {
+    ID        uint   `gorm:"primaryKey"`
+    UserID    uint   `gorm:"index:idx_user_action"` // Part of composite index
+    Action    string `gorm:"index:idx_user_action"` // Part of composite index
+    CreatedAt time.Time
+}
+```
+
+### 4. Indexing Best Practices
+1.  **Don't Over-Index**: Every index adds overhead to `INSERT`, `UPDATE`, and `DELETE` operations.
+2.  **Index Selective Columns**: Avoid indexing columns with low cardinality (e.g., Boolean fields like `is_deleted` unless part of a composite index).
+3.  **Order Matters in Composite Indexes**: Place the most selective column (the one that filters out the most rows) first.
+4.  **Covering Indexes**: Aim for indexes that contain all columns required by the query to avoid table lookups.
+
 ## Important Notes
 
 - **No tests currently exist** - create tests when adding new features
